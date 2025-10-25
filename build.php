@@ -1,5 +1,8 @@
 <?php
 
+// This script is used to build the plugin into a PHAR file. (Dependencies are not included in the PHAR file)
+// php -d phar.readonly=0 build.php
+
 $finalPharFile = __DIR__ . '/YOUR_PLUGIN_NAME.phar';
 
 $startTime = microtime(true);
