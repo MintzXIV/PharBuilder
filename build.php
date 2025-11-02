@@ -3,7 +3,9 @@
 // This script is used to build the plugin into a PHAR file. (Dependencies are not included in the PHAR file)
 // php -d phar.readonly=0 build.php
 
-$finalPharFile = __DIR__ . '/YOUR_PLUGIN_NAME.phar';
+$pharFile = "/YOUR_PLUGIN_NAME.phar"
+
+$finalPharFile = __DIR__ . $pharFile;
 
 $startTime = microtime(true);
 
@@ -63,7 +65,7 @@ try {
     
     $phar->stopBuffering();
     
-    echo "\nBuilt EmeraldEconomy.phar successfully!\n\nTotal time: " . (microtime(true) - $startTime) . " seconds\n\n";
+    echo "\nBuilt " . $pharFile . " successfully!\n\nTotal time: " . (microtime(true) - $startTime) . " seconds\n\n";
     
     $verify = new Phar($finalPharFile);
     $totalCount = 0;
