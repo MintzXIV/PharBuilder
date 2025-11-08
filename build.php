@@ -1,6 +1,7 @@
 <?php
 
 // This script is used to build the plugin into a PHAR file. (Dependencies are not included in the PHAR file)
+// Some files may not be included...
 // php -d phar.readonly=0 build.php
 
 $pharFile = "/YOUR_PLUGIN_NAME.phar"
