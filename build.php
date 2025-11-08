@@ -4,7 +4,7 @@
 // Some files may not be included...
 // php -d phar.readonly=0 build.php
 
-$pharFile = "/YOUR_PLUGIN_NAME.phar"
+$pharFile = "/YOUR_PLUGIN_NAME.phar";
 
 $finalPharFile = __DIR__ . $pharFile;
 
