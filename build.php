@@ -1,119 +1,123 @@
 <?php
 
-// php -d phar.readonly=0 build.php
+// Command to run: php -d phar.readonly=0 build.php
 
-$pharFile = "YOUR_PLUGIN_NAME.phar";
-$finalPharFile = __DIR__ . "/" . $pharFile;
+$pluginName = "YOUR_PLUGIN_NAME";
+$pharName = $pluginName . ".phar";
+$buildDir = __DIR__;
+$finalPharPath = $buildDir . "/" . $pharName;
 
 $startTime = microtime(true);
 
-if (file_exists($finalPharFile)) {
-    @unlink($finalPharFile);
+echo "Building $pharName...\n";
+
+if (file_exists($finalPharPath)) {
+    echo "  - Deleting old PHAR...\n";
+    @unlink($finalPharPath);
     clearstatcache();
 }
 
 try {
-    $phar = new Phar($finalPharFile);
-    $phar->setStub('<?php __HALT_COMPILER();');
+    $phar = new Phar($finalPharPath);
+    $phar->setSignatureAlgorithm(Phar::SHA1);
     $phar->startBuffering();
 
-    $pluginYmlPath = __DIR__ . '/plugin.yml';
-    if (file_exists($pluginYmlPath)) {
-        $phar->addFromString('plugin.yml', file_get_contents($pluginYmlPath));
-        echo "Added plugin.yml\n";
-    } else {
-        echo "Warning: plugin.yml not found!\n";
+    $rootFiles = [
+        'plugin.yml',
+        'composer.json',
+        'composer.lock',
+        'README.md',
+        'LICENSE'
+    ];
+
+    foreach ($rootFiles as $file) {
+        $path = $buildDir . "/" . $file;
+        if (file_exists($path)) {
+            $phar->addFile($path, $file);
+            echo "  + Added $file\n";
+        }
     }
+
+    $srcDir = $buildDir . "/src";
+    $srcCount = 0;
     
-    $composerJsonPath = __DIR__ . '/composer.json';
-    if (file_exists($composerJsonPath)) {
-        $phar->addFromString('composer.json', file_get_contents($composerJsonPath));
-        echo "Added composer.json\n";
-    } else {
-        echo "Warning: composer.json not found!\n";
-    }
-
-    $composerLockPath = __DIR__ . '/composer.lock';
-    if (file_exists($composerLockPath)) {
-        $phar->addFromString('composer.lock', file_get_contents($composerLockPath));
-        echo "Added composer.lock\n";
-    }
-
-    $srcDir = __DIR__ . '/src';
     if (is_dir($srcDir)) {
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($srcDir, RecursiveDirectoryIterator::SKIP_DOTS),
             RecursiveIteratorIterator::LEAVES_ONLY
         );
 
-        $fileCount = 0;
-
         foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
+            if ($file->isFile()) {
                 $realPath = $file->getRealPath();
                 $relativePath = 'src/' . substr($realPath, strlen($srcDir) + 1);
                 $relativePath = str_replace('\\', '/', $relativePath);
 
-                $phar->addFromString($relativePath, file_get_contents($realPath));
-                echo "Added: $relativePath\n";
-                $fileCount++;
+                $phar->addFile($realPath, $relativePath);
+                $srcCount++;
             }
         }
-        echo "Added $fileCount PHP files from src/\n";
+        echo "  + Added $srcCount files from src/\n";
     }
 
-    $resourcesDir = __DIR__ . '/resources';
-
-    if (is_dir($resourcesDir)) {
+    $resDir = $buildDir . "/resources";
+    if (is_dir($resDir)) {
+        $resCount = 0;
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($resourcesDir, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
+            new RecursiveDirectoryIterator($resDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
         );
-
-        $resourceCount = 0;
 
         foreach ($iterator as $file) {
             if ($file->isFile()) {
-
                 $realPath = $file->getRealPath();
-                $relativePath = 'resources/' . substr($realPath, strlen($resourcesDir) + 1);
+                $relativePath = 'resources/' . substr($realPath, strlen($resDir) + 1);
                 $relativePath = str_replace('\\', '/', $relativePath);
 
-                $phar->addFromString($relativePath, file_get_contents($realPath));
-                echo "Added resource: $relativePath\n";
-
-                $resourceCount++;
+                $phar->addFile($realPath, $relativePath);
+                $resCount++;
             }
         }
-
-        echo "Added $resourceCount resource files from resources/\n";
-    } else {
-        echo "No resources/ folder found. Skipping.\n";
+        echo "  + Added $resCount files from resources/\n";
     }
+
+    $libsDir = $buildDir . "/libs";
+    if (is_dir($libsDir)) {
+        $libCount = 0;
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($libsDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $realPath = $file->getRealPath();
+                
+                $relativePath = 'src/libs/' . substr($realPath, strlen($libsDir) + 1);
+                $relativePath = str_replace('\\', '/', $relativePath);
+
+                $phar->addFile($realPath, $relativePath);
+                $libCount++;
+            }
+        }
+        echo "  + Added $libCount files from libs/ (Mapped to src/libs/)\n";
+    } else {
+        echo "  ! No libs/ folder found. (If you use virions, make sure they are installed)\n";
+    }
+
+    $defaultStub = '<?php __HALT_COMPILER();';
+    $phar->setStub($defaultStub);
 
     $phar->stopBuffering();
 
-    echo "\nBuilt " . $pharFile . " successfully!\n\nTotal time: " . (microtime(true) - $startTime) . " seconds\n\n";
-
-    $verify = new Phar($finalPharFile);
-    $totalCount = 0;
-
-    echo "Files in PHAR:\n";
-    foreach (new RecursiveIteratorIterator($verify) as $file) {
-        if ($totalCount++ < 15) {
-            echo "  " . $file->getFileName() . "\n";
-        }
-    }
-
-    if ($totalCount > 15) {
-        echo "  ... and " . ($totalCount - 15) . " more files\n";
-    }
-
-    echo "\nTotal files in PHAR: $totalCount\n";
+    $time = round(microtime(true) - $startTime, 3);
+    echo "\n------------------------------------------------\n";
+    echo "SUCCESS! Built $pharName in $time seconds.\n";
+    echo "File size: " . round(filesize($finalPharPath) / 1024, 2) . " KB\n";
+    echo "------------------------------------------------\n";
 
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage() . "\n";
+    echo "\nCRITICAL ERROR: " . $e->getMessage() . "\n";
     exit(1);
 }
-
 ?>
